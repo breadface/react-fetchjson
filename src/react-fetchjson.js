@@ -1,10 +1,11 @@
 import React from 'react'
 import shallowequal from 'shallowequal'
+import { connect, Provider } from 'react-redux'
+import store from './store'
 
 const serialize = obj => Object.entries(obj).map(([key, value]) =>
   `${encodeURIComponent(key)}=${encodeURIComponent(value)}`
 ).join('&')
-
 
 const buildHeaders = token => {
   let headers = {
@@ -19,7 +20,20 @@ const buildHeaders = token => {
   }
 }
 
-class FetchJSON extends React.Component<Props, State> {
+const FetchJSON = connect(
+  (state, props) => {
+    return {
+      data_list: state
+    }
+  },
+  (dispatch, props) => {
+    return {
+      action: (args) => {
+        return dispatch(args)
+      }
+    }
+  }
+)(class extends React.Component {
   state = {
     data: null,
     error: null
@@ -47,7 +61,7 @@ class FetchJSON extends React.Component<Props, State> {
     } catch (e) {
       //TODO: Error handling implementation
       console.log('e:', e)
-      
+
     }
 
     if(otherConfig.action) {
@@ -63,7 +77,7 @@ class FetchJSON extends React.Component<Props, State> {
     }
   }
 
-  componentDidUpdate(prevProps: Props, prevState: State){
+  componentDidUpdate(prevProps, prevState){
     if(this.props.disabled) {
       return
     } else {
@@ -77,6 +91,14 @@ class FetchJSON extends React.Component<Props, State> {
     const { data, error } = this.state
     return this.props.children(data, error)
   }
-}
+})
 
-export default FetchJSON
+const CacheProvider = props => (
+  <Provider store={store}>
+    <FetchJSON
+      {...props}
+    />
+  </Provider>
+)
+
+export default CacheProvider
