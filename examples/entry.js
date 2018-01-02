@@ -7,8 +7,9 @@ class Dogs extends React.Component {
     return (
       <FetchJSON
         url="https://dog.ceo/api/breeds/list/all"
-        disabled={false}
-        >{(data) => {
+        data={null}
+        // disabled={false}
+        >{({data, error, status}) => {
           console.log('data:', data)
           return <div>
             Welcome to the application Jesmine

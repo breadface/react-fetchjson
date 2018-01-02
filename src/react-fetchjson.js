@@ -1,95 +1,120 @@
 import React from 'react'
 import shallowequal from 'shallowequal'
 import { connect, Provider } from 'react-redux'
+import _ from 'lodash'
 import store from './store'
+
+
+const precondition = (condition, message="Unmet precondition") => {
+  if (!condition) {
+    throw new Error(message);
+  }
+}
 
 const serialize = obj => Object.entries(obj).map(([key, value]) =>
   `${encodeURIComponent(key)}=${encodeURIComponent(value)}`
-).join('&')
+).join('&');
 
 const buildHeaders = token => {
   let headers = {
     Accept: 'application/json, text/javascript',
     "Content-Type": "application/x-www-form-urlencoded"
-  }
+  };
 
   if (token){
-    return { ...headers, Authorization: `Bearer ${token}`}
+    return { ...headers, Authorization: `Bearer ${token}`};
   } else {
-    return headers
+    return headers;
   }
 }
 
 const FetchJSON = connect(
-  (state, props) => {
+  ({fetch_list}, props) => {
+    const fetch_object = fetch_list
+      .find(obj => obj.url === props.url)
+    const disabled = fetch_object && fetch_object.status === 'loaded'
+
     return {
-      data_list: state
+      fetch_object,
+      disabled
     }
   },
   (dispatch, props) => {
     return {
       action: (args) => {
-        return dispatch(args)
+        dispatch(args)
       }
     }
   }
 )(class extends React.Component {
-  state = {
-    data: null,
-    error: null
-  }
-
   async handleFetch() {
-    const { method='get', params=null, token="", ...otherConfig } = this.props
+    const { method='get', params=null, token="", action } = this.props
     const url_for_this_request = this.props.url
     const body = params ? serialize(params) : params
-
-    let headers = new Headers(buildHeaders(token))
+    const headers = new Headers(buildHeaders(token))
 
     try {
       const result = await fetch(this.props.url,{
         method,
         body,
-        headers,
-        ...otherConfig
+        headers
       })
       const data = await result.json()
 
       if(url_for_this_request === this.props.url) {
-        this.setState({data})
+        action({
+          type: 'CACHE',
+          payload: {
+            data,
+            url: this.props.url,
+            status: 'loaded'
+          }
+        })
       }
     } catch (e) {
       //TODO: Error handling implementation
       console.log('e:', e)
 
     }
-
-    if(otherConfig.action) {
-      otherConfig.action()
-    }
   }
 
   componentDidMount() {
-    if(this.props.disabled){
-      return
-    } else {
+    precondition(
+      this.props.method !== 'post',
+      "POST request not yet implemented"
+    )
+
+    if (!this.props.disabled) {
+      console.log('gets called')
       this.handleFetch()
     }
   }
 
   componentDidUpdate(prevProps, prevState){
-    if(this.props.disabled) {
-      return
-    } else {
-      if(!shallowequal(prevProps, this.props)) {
-        this.handleFetch()
-      }
+    if (!this.props.disabled && !shallowequal(prevProps, this.props)) {
+      this.handleFetch()
     }
   }
 
   render(){
-    const { data, error } = this.state
-    return this.props.children(data, error)
+    const getFetchState = (fetch_object) => {
+      if (fetch_object) {
+        const {url, others} = fetch_object
+
+        return {
+          error: null,
+          ...others
+        }
+      } else {
+        return {
+          data: null,
+          status: null,
+          error: null
+        }
+      }
+    }
+
+    return this.props.children(getFetchState(this.props.fetch_object))
   }
 })
 
