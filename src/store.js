@@ -12,9 +12,12 @@ type Id = {
 type FetchElement = {
   // TODO Timestamp maybe? Feels odd
   url: string,
-  // Note the `?` => data is not available on this object during `loading`
+  // Note the `?` => data and error is not available on this object during `loading`
   data: ?mixed, // This can be anything: no assumtions can be made
-  status: 'loading' | 'done',
+  status: 'loading' | 'done' | 'error',
+  error: ?mixed,
+}
+
 type State = {
   fetch_list: Array<FetchElement>,
 }
@@ -42,12 +45,12 @@ const reducers = (state=initial_state/*:State*/, action) => {
         return state;
       } else {
         return {
-          // Changing this to a more explicit (?!idk) append
           fetch_list: [
             ...state.fetch_list,
             {
               url: action.payload.url,
               data: null,
+              error: null,
               status: 'loading',
             }
           ],
@@ -64,8 +67,31 @@ const reducers = (state=initial_state/*:State*/, action) => {
           fetch_list: state.fetch_list.map(element => {
             if (element.url === action.payload.url) {
               return  {
-                url: action.payload.url,
+                ...element,
                 data: action.payload.data,
+                status: action.payload.status,
+              }
+            } else {
+              return element
+            }
+          })
+        }
+      } else {
+        throw new Error(`Status unknown... REFUSE`)
+      }
+    }
+
+    case 'UPDATE_FETCH_WITH_ERROR': {
+      let existing_fetch = get_fetch_by(state.fetch_list, action.payload);
+      precondition(existing_fetch != null, `UPDATE_FETCH on non-existing fetch element?`);
+
+      if (action.payload.status === 'error') {
+        return {
+          fetch_list: state.fetch_list.map(element => {
+            if (element.url === action.payload.url) {
+              return  {
+                ...element,
+                error: action.payload.error,
                 status: action.payload.status,
               }
             } else {
@@ -102,28 +128,41 @@ const buildHeaders = token => {
 
 class FetchAction extends React.Component {
   async handleFetch() {
-    const { method='get', params=null, token="", url } = this.props.element
-    const body = params ? serialize(params) : params
-    const headers = buildHeaders(token)
+    const { method='get', params=null, token="", url } = this.props.element;
+    const body = params ? serialize(params) : params;
+    const headers = buildHeaders(token);
 
     try {
       const result = await fetch(url,{
         method,
         body,
         headers
-      })
-      const data = await result.json()
+      });
+
+      const content_type = result.headers.get('content-type');
+      precondition(
+        (content_type && content_type.includes('application/json')),
+        "Response is not valid json"
+      );
+      const data = await result.json();
       this.props.action({
         type: 'UPDATE_FETCH',
         payload: {
+          url,
           data,
-          url: url,
           status: 'done'
         }
+      });
+
+    } catch (error) {
+      this.props.action({
+        type: 'UPDATE_FETCH_WITH_ERROR',
+        payload: {
+          url,
+          error: { message: error },
+          status: 'error'
+        }
       })
-    } catch (e) {
-      //TODO: Error handling implementation
-      console.log('e:', e)
     }
   }
 
@@ -158,7 +197,7 @@ export const FetchRunner = connect(state => {
   return [
     ...elements
     .filter(element => element.status === 'loading')
-    .map(element => <FetchAction element={element} action={action} />)
+    .map((element, index) => <FetchAction key={index} element={element} action={action} />)
   ];
 });
 

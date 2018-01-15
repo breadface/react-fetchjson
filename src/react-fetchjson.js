@@ -70,20 +70,16 @@ export const FetchJSON = connect(
 
   render(){
     const getFetchState = (fetch_object) => {
-      if (fetch_object && fetch_object.status === 'done') {
-        return {
-          status: fetch_object.status,
-          data: fetch_object.data,
-          error: null,
-        }
+      if (fetch_object) {
+        return fetch_object;
       } else {
         return {
           data: null,
           status: 'loading',
           error: null
-        }
+        };
       }
-    }
+    };
 
     return this.props.children(getFetchState(this.props.fetch_object))
   }
