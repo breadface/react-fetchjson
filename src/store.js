@@ -1,6 +1,8 @@
 import React from 'react';
-import { createStore } from 'redux'
-import { connect, Provider } from 'react-redux'
+import { createStore } from 'redux';
+import { connect, Provider } from 'react-redux';
+import {persistReducer, persistStore} from 'redux-persist';
+import storage from 'redux-persist/lib/storage';
 
 /*:flow
 // Id is something I just made up that would be the subset of the element that would be matched for duplicates;
@@ -201,4 +203,5 @@ export const FetchRunner = connect(state => {
   ];
 });
 
-export const store = createStore(reducers);
+export const store = createStore(persistReducer({key: 'root', storage}, reducers));
+export const persistor = persistStore(store);

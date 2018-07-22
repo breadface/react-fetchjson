@@ -1,10 +1,10 @@
 import React from 'react'
 import shallowequal from 'shallowequal'
 import { connect, Provider } from 'react-redux'
-import _ from 'lodash'
+import {PersistGate} from 'redux-persist/integration/react';
 
 // Store is more than just the store now
-import { FetchRunner, store } from './store.js'
+import { FetchRunner, store, persistor } from './store.js'
 
 const Group = ({ children }) => {
   return React.Children.toArray(children);
@@ -15,12 +15,14 @@ const Group = ({ children }) => {
 export const FetchStoreProvider = ({ children }) => {
   return (
     <Provider store={store}>
-      <Group>
-        {/* Is there a more explicit way to bind Provider and FetchRunner? (and the children for that matter even maybe?)
-            Feels like it might easily collide now */}
-        <FetchRunner />
-        {children}
-      </Group>
+      <PersistGate loading={null} persistor={persistor}>
+        <Group>
+          {/* Is there a more explicit way to bind Provider and FetchRunner? (and the children for that matter even maybe?)
+              Feels like it might easily collide now */}
+          <FetchRunner />
+          {children}
+        </Group>
+      </PersistGate>
     </Provider>
   );
 }
@@ -69,18 +71,15 @@ export const FetchJSON = connect(
   }
 
   render(){
-    const getFetchState = (fetch_object) => {
-      if (fetch_object) {
-        return fetch_object;
-      } else {
-        return {
-          data: null,
-          status: 'loading',
-          error: null
-        };
-      }
+    const {url, fetch_object} = this.props;
+    const payload = {
+      url,
+      data: null,
+      status: 'loading',
+      errors: null
     };
+    const fetch_payload = fetch_object ? fetch_object : payload;
 
-    return this.props.children(getFetchState(this.props.fetch_object))
+    return this.props.children(fetch_payload);
   }
 });
