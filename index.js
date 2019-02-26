@@ -1,1 +1,1 @@
-module.exports = require("./build/react-fetchjson.js");
+module.exports = require("./build/index.js");

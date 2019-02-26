@@ -1,16 +1,13 @@
 import React from 'react'
 import { render } from 'react-dom'
-import { FetchJSON, FetchStoreProvider } from '../src/react-fetchjson.js'
+import { FetchJSON, FetchJSONProvider } from '../index';
 
 class Dogs extends React.Component {
   render() {
-    return (
-      <FetchStoreProvider>
+    return (      
         <div>
           <FetchJSON
-            url="https://dog.ceo/api/breeds/list/all"
-            data={null}
-            // disabled={false}
+            url="https://dog.ceo/api/breeds/list/all"          
           >{({data, error, status}) =>
             <div con={console.log(`#1 data, error, status:`, data, error, status)}>
               Gets data still
@@ -19,20 +16,20 @@ class Dogs extends React.Component {
 
           <FetchJSON
             url="https://dog.ceo/api/breeds/list/all"
-            data={null} // Nice dog api
-            // disabled={false}
           >{({data, error, status}) =>
             <div con={console.log(`#2 data, error, status:`, data, error, status)}>
               Gets data still
             </div>
           }</FetchJSON>
         </div>
-      </FetchStoreProvider>
     )
   }
 }
 
 render(
-  <Dogs />,
+  <FetchJSONProvider>
+    <Dogs />
+  </FetchJSONProvider>
+  ,
   document.getElementById('app')
 )

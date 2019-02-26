@@ -1,7 +1,7 @@
 {
   "name": "react-fetchjson",
-  "version": "0.0.1",
-  "description": "A simple React component wrapper for fetch api",
+  "version": "1.0.0",
+  "description": "A simple React wrapper for fetch api",
   "main": "index.js",
   "scripts": {
     "build-example": "rollup -c ",
@@ -12,14 +12,14 @@
   "license": "ISC",
   "dependencies": {
     "babel-cli": "^6.26.0",
-    "react": "^16.4.1",
-    "react-dom": "^16.4.1",
-    "react-redux": "^5.0.7",
-    "redux": "^3.7.2",
-    "redux-persist": "^5.10.0",
+    "react-dom": "^16.3.0",
     "shallowequal": "^1.1.0"
   },
+  "peerDependencies": {
+    "react": "^16.3.0"
+  },
   "devDependencies": {
+    "babel-eslint": "^9.0.0",
     "babel-loader": "^7.1.5",
     "babel-plugin-external-helpers": "^6.22.0",
     "babel-plugin-transform-class-properties": "^6.24.1",
@@ -27,9 +27,15 @@
     "babel-plugin-transform-runtime": "^6.23.0",
     "babel-preset-env": "^1.7.0",
     "babel-preset-react": "^6.24.1",
+    "eslint": "^5.14.1",
+    "eslint-config-react-app": "^3.0.7",
+    "eslint-plugin-flowtype": "^2.50.3",
+    "eslint-plugin-import": "^2.16.0",
+    "eslint-plugin-jsx-a11y": "^6.2.1",
+    "eslint-plugin-react": "^7.12.4",
     "rollup-plugin-babel": "^3.0.7",
     "rollup-plugin-commonjs": "^8.4.1",
-    "rollup-plugin-node-resolve": "^3.3.0",
-    "rollup-plugin-replace": "^2.0.0"
+    "rollup-plugin-node-resolve": "^3.4.0",
+    "rollup-plugin-replace": "^2.1.0"
   }
 }
