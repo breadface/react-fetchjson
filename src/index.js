@@ -1,20 +1,24 @@
-import React from "react";
+import React, { Fragment } from "react";
+import immer from "immer";
 
 let CacheContext = React.createContext({});
 
 const serialize = obj =>
   Object.entries(obj)
-    .map(([key, value]) => 
-    `${encodeURIComponent(key)}=${encodeURIComponent(value)}`).join("&");
+    .map(
+      ([key, value]) =>
+        `${encodeURIComponent(key)}=${encodeURIComponent(value)}`
+    )
+    .join("&");
 
-const buildHeaders = token => {
+const buildHeaders = options => {
   let headers = {
     Accept: "application/json, text/javascript",
     "Content-Type": "application/x-www-form-urlencoded"
   };
 
-  if (token) {
-    return { ...headers, Authorization: `Bearer ${token}` };
+  if (options) {
+    return { ...headers, ...options };
   } else {
     return headers;
   }
@@ -26,46 +30,51 @@ const precondition = (condition, message = "Unmet precondition") => {
   }
 };
 
-const Group = ({ children }) => React.Children.toArray(children);
-
 class CacheProvider extends React.Component {
   state = {
-    fetchList: [] //Fetch this from localStograge
+    cache: {}
   };
 
-  reducer = (list, arg) => {
-    if (list.find(data => data.url === arg.url)) {
-      return list.map(data => {
-        if (data.url === arg.url) {
-          return arg;
-        } else {
-          return data;
-        }
-      });
-    } else {
-      return list.concat([
-        {
-          url: arg.url,
-          data: null,
-          error: null,
-          status: "loading"
-        }
-      ]);
+  onFetchRequest = url => {
+    if (!this.state.cache[url]) {
+      this.setState(state =>
+        immer(state, mutable_state => {
+          mutable_state.cache[url] = {
+            url,
+            requestTime: new Date(),
+            resolvedTime: null,
+            data: null,
+            error: null,
+            status: "loading"
+          };
+        })
+      );
     }
   };
 
-  handleUpdate = payload => {    
-    this.setState(state => ({
-      fetchList: this.reducer(state.fetchList, payload)
-    }));
+  onFetchResult = ({ url, ...rest }) => {
+    this.setState(state => {
+      if (state.cache[url]) {
+        return immer(state, mutable_state => {
+          let requestTime = mutable_state.cache[url].requestTime;
+          mutable_state.cache[url] = {
+            url,
+            requestTime,
+            ...rest,
+            resolvedTime: new Date()
+          };
+        });
+      }
+    });
   };
 
   render() {
     return (
       <CacheContext.Provider
         value={{
-          value: this.state.fetchList,
-          onUpdate: this.handleUpdate
+          value: this.state.cache,
+          onFetchRequest: this.onFetchRequest,
+          onFetchResult: this.onFetchResult
         }}
       >
         {this.props.children}
@@ -79,11 +88,11 @@ class FetchAction extends React.Component {
     const {
       method = "get",
       params = null,
-      token = "",
+      options = null,
       url
     } = this.props.element;
     const body = params ? serialize(params) : params;
-    const headers = buildHeaders(token);
+    const headers = buildHeaders(options);
 
     try {
       const result = await fetch(url, {
@@ -101,6 +110,7 @@ class FetchAction extends React.Component {
       this.props.action({
         url,
         data,
+        error: null,
         status: "done"
       });
     } catch (error) {
@@ -127,39 +137,38 @@ class FetchAction extends React.Component {
   }
 }
 
-//One component to 'divide' all
-const FetchRunner = () => {
-  return (
-    <CacheContext.Consumer>
-      {({ value, onUpdate }) => {
-        return value
-          .filter(data => data.status === "loading")
-          .map(element => (
-            <FetchAction
-              key={element.url}
-              element={element}
-              action={onUpdate}
-            />
-          ));
-      }}
-    </CacheContext.Consumer>
-  );
-};
+const WithCache = ({ children }) => (
+  <CacheContext.Consumer>{props => children(props)}</CacheContext.Consumer>
+);
 
+//One component to 'divide' all
+const FetchRunner = () => (
+  <WithCache>
+    {({ value, onFetchResult }) =>
+      Object.values(value)
+        .filter(data => data.status === "loading")
+        .map(element => (
+          <FetchAction
+            key={element.url}
+            element={element}
+            action={onFetchResult}
+          />
+        ))
+    }
+  </WithCache>
+);
 export const FetchJSONProvider = ({ children }) => (
   <CacheProvider>
-    <Group>
+    <Fragment>
       <FetchRunner />
       {children}
-    </Group>
+    </Fragment>
   </CacheProvider>
 );
 
 class HandleFetch extends React.Component {
   fetch() {
-    this.props.action({
-      url: this.props.url
-    });
+    this.props.action(this.props.url);
   }
 
   componentDidMount() {
@@ -181,28 +190,26 @@ class HandleFetch extends React.Component {
   }
 }
 
-export const FetchJSON = ({ url, children }) => {
-  return (
-    <CacheContext.Consumer>
-      {({ value, onUpdate }) => {
-        let fetchObject = value.find(data => data.url === url);
-        if (fetchObject) {
-          return children(fetchObject);
-        } else {
-          return (
-            <HandleFetch
-              url={url}
-              children={children({
-                url,
-                data: null,
-                error: null,
-                status: "loading"
-              })}
-              action={onUpdate}
-            />
-          );
-        }
-      }}
-    </CacheContext.Consumer>
-  );
-};
+export const FetchJSON = ({ url, children }) => (
+  <WithCache>
+    {({ value, onFetchRequest }) => {
+      let fetchObject = value[url];
+      if (fetchObject) {
+        return children(fetchObject);
+      } else {
+        return (
+          <HandleFetch
+            url={url}
+            children={children({
+              url,
+              data: null,
+              error: null,
+              status: "loading"
+            })}
+            action={onFetchRequest}
+          />
+        );
+      }
+    }}
+  </WithCache>
+);
